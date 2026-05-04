@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GENEBREW//MESSENGER — P2P Encrypted Core</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #050706;
+    --bg-1: #0a0f0d;
+    --bg-2: #0f1613;
+    --line: rgba(0, 255, 159, 0.15);
+    --line-strong: rgba(0, 255, 159, 0.4);
+    --fg: #c9f7e0;
+    --fg-dim: #5a8470;
+    --fg-mute: #2f4a3d;
+    --green: #00ff9f;
+    --green-deep: #16c98c;
+    --amber: #ffb000;
+    --red: #ff3b3b;
+    --cyan: #4dd0e1;
+    --magenta: #ff7ad9;
+    --mono: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg-0);
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.55;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse at top, rgba(0, 255, 159, 0.06), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(0, 255, 159, 0.04), transparent 60%),
+      var(--bg-0);
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Scanlines */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 255, 159, 0.025) 0,
+      rgba(0, 255, 159, 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 100;
+    mix-blend-mode: overlay;
+  }
+
+  /* CRT flicker */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 255, 159, 0.012);
+    pointer-events: none;
+    z-index: 101;
+    animation: flicker 6s infinite;
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 0.3; }
+    5% { opacity: 0.8; }
+    10% { opacity: 0.3; }
+    15% { opacity: 0.6; }
+    20% { opacity: 0.3; }
+    50% { opacity: 0.4; }
+    80% { opacity: 0.3; }
+  }
+
+  /* Top status bar */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(5, 7, 6, 0.92);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+    padding: 8px 24px;
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .topbar .left, .topbar .right {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+
+  .pill {
+    border: 1px solid var(--line-strong);
+    color: var(--green);
+    padding: 2px 8px;
+    border-radius: 1px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    background: rgba(0, 255, 159, 0.05);
+  }
+
+  .pill.amber { color: var(--amber); border-color: rgba(255, 176, 0, 0.5); background: rgba(255, 176, 0, 0.05); }
+  .pill.red { color: var(--red); border-color: rgba(255, 59, 59, 0.5); background: rgba(255, 59, 59, 0.05); }
+  .pill.dim { color: var(--fg-dim); border-color: var(--line); background: transparent; }
+
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.6s infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Container */
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px 96px;
+  }
+
+  /* CLASSIFIED stamp */
+  .classified-stamp {
+    position: absolute;
+    top: 30px;
+    right: 32px;
+    border: 3px solid var(--red);
+    color: var(--red);
+    padding: 10px 18px;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.25em;
+    transform: rotate(8deg);
+    opacity: 0.85;
+    box-shadow: inset 0 0 0 2px rgba(255, 59, 59, 0.2);
+    text-align: center;
+    line-height: 1.2;
+    user-select: none;
+  }
+
+  .classified-stamp small {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--red);
+    opacity: 0.8;
+    margin-top: 2px;
+  }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    border: 1px solid var(--line-strong);
+    background:
+      linear-gradient(135deg, rgba(0, 255, 159, 0.03), transparent 50%),
+      var(--bg-1);
+    padding: 32px 32px 36px;
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent, rgba(0, 255, 159, 0.04));
+    pointer-events: none;
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--fg-dim);
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta span::before {
+    content: "// ";
+    color: var(--green);
+    opacity: 0.5;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-weight: 800;
+    font-size: clamp(36px, 6vw, 64px);
+    line-height: 1;
+    color: var(--fg);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+
+  .logo .slash {
+    color: var(--green);
+    text-shadow: 0 0 12px rgba(0, 255, 159, 0.5);
+  }
+
+  .logo .accent {
+    color: var(--green);
+    text-shadow: 0 0 18px rgba(0, 255, 159, 0.4);
+  }
+
+  .tagline {
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: var(--fg-dim);
+    margin-bottom: 22px;
+    max-width: 720px;
+  }
+
+  .tagline strong {
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  .terminal {
+    background: #000;
+    border: 1px solid var(--line);
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--green);
+    margin: 24px 0 8px;
+    position: relative;
+    box-shadow: inset 0 0 40px rgba(0, 255, 159, 0.05);
+  }
+
+  .terminal::before {
+    content: "● ● ●";
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    color: var(--fg-mute);
+    font-size: 10px;
+    letter-spacing: 4px;
+  }
+
+  .term-line { white-space: pre-wrap; }
+  .term-prompt { color: var(--cyan); }
+  .term-cmd { color: var(--fg); }
+  .term-out { color: var(--fg-dim); }
+  .term-ok { color: var(--green); }
+  .term-warn { color: var(--amber); }
+
+  .cursor {
+    display: inline-block;
+    width: 9px;
+    height: 14px;
+    background: var(--green);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 1s steps(2) infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .key-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    margin-top: 24px;
+    border: 1px solid var(--line);
+  }
+
+  .key-stat {
+    background: var(--bg-1);
+    padding: 16px 18px;
+  }
+
+  .key-stat label {
+    display: block;
+    color: var(--fg-mute);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 6px;
+  }
+
+  .key-stat .val {
+    color: var(--green);
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* SECTIONS */
+  section {
+    margin-bottom: 56px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px dashed var(--line);
+    padding-bottom: 8px;
+  }
+
+  .section-num {
+    color: var(--green);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+  }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--fg);
+    letter-spacing: -0.01em;
+  }
+
+  .section-title .accent { color: var(--green); }
+
+  .section-sub {
+    color: var(--fg-dim);
+    font-size: 12px;
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* TWO COLUMN */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 760px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    padding: 20px 22px;
+    position: relative;
+  }
+
+  .panel::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 12px; height: 12px;
+    border-top: 2px solid var(--green);
+    border-left: 2px solid var(--green);
+  }
+  .panel::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 12px; height: 12px;
+    border-bottom: 2px solid var(--green);
+    border-right: 2px solid var(--green);
+  }
+
+  .panel.warn::before, .panel.warn::after {
+    border-color: var(--red);
+  }
+
+  .panel h3 {
+    font-size: 13px;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .panel.warn h3 { color: var(--red); }
+
+  .panel ul { list-style: none; }
+  .panel li {
+    padding: 5px 0;
+    color: var(--fg);
+    font-size: 13px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .panel li:last-child { border-bottom: none; }
+  .panel li .marker {
+    color: var(--green);
+    flex-shrink: 0;
+  }
+  .panel.warn li .marker { color: var(--red); }
+
+  /* ARCHITECTURE */
+  .arch-box {
+    border: 1px solid var(--line-strong);
+    background: var(--bg-1);
+    padding: 24px;
+    overflow-x: auto;
+  }
+
+  pre.ascii {
+    color: var(--green);
+    font-size: 11.5px;
+    line-height: 1.4;
+    white-space: pre;
+    text-shadow: 0 0 6px rgba(0, 255, 159, 0.2);
+  }
+
+  pre.ascii .label { color: var(--cyan); }
+  pre.ascii .arrow { color: var(--amber); }
+  pre.ascii .note { color: var(--fg-dim); }
+
+  /* CRYPTO STACK */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .stack-card {
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    padding: 18px;
+    position: relative;
+    transition: all 0.2s;
+  }
+
+  .stack-card:hover {
+    border-color: var(--green);
+    background: var(--bg-2);
+    transform: translateY(-2px);
+  }
+
+  .stack-card .id {
+    color: var(--fg-mute);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    margin-bottom: 6px;
+  }
+
+  .stack-card h4 {
+    color: var(--green);
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .stack-card p {
+    color: var(--fg-dim);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* MODULE TABLE */
+  .modtable {
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+
+  .modtable th {
+    background: var(--bg-2);
+    color: var(--green);
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    border-bottom: 1px solid var(--line-strong);
+  }
+
+  .modtable td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    color: var(--fg);
+  }
+
+  .modtable tr:last-child td { border-bottom: none; }
+  .modtable tr:hover td { background: rgba(0, 255, 159, 0.03); }
+
+  .modtable .name { color: var(--green); font-weight: 500; }
+  .modtable .status-ok::before { content: "● "; color: var(--green); }
+  .modtable .status-pending::before { content: "● "; color: var(--amber); }
+  .modtable .status-future::before { content: "○ "; color: var(--fg-mute); }
+
+  /* ROADMAP */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  @media (max-width: 900px) {
+    .roadmap { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .road-card {
+    border: 1px solid var(--line);
+    padding: 14px 12px;
+    background: var(--bg-1);
+    position: relative;
+  }
+
+  .road-card.current {
+    border-color: var(--green);
+    background: linear-gradient(180deg, rgba(0, 255, 159, 0.08), var(--bg-1));
+    box-shadow: 0 0 0 1px var(--green), 0 0 24px rgba(0, 255, 159, 0.15);
+  }
+
+  .road-card .num {
+    color: var(--fg-mute);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+  }
+
+  .road-card.current .num { color: var(--green); }
+
+  .road-card h5 {
+    font-size: 13px;
+    color: var(--fg);
+    margin: 4px 0 6px;
+    font-weight: 600;
+  }
+
+  .road-card p {
+    color: var(--fg-dim);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .road-card .badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 9px;
+    color: var(--green);
+    border: 1px solid var(--green);
+    padding: 1px 5px;
+    letter-spacing: 0.1em;
+  }
+
+  /* DEFERRED LIST */
+  .deferred {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+  }
+
+  .def-row {
+    border: 1px solid var(--line);
+    background: var(--bg-1);
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .def-row .tag {
+    color: var(--amber);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 176, 0, 0.4);
+    padding: 2px 6px;
+    background: rgba(255, 176, 0, 0.05);
+    align-self: flex-start;
+  }
+
+  .def-row .body {
+    color: var(--fg);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .def-row .body small {
+    display: block;
+    color: var(--fg-dim);
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  /* Disclaimers */
+  .disclaim {
+    border: 1px solid rgba(255, 59, 59, 0.4);
+    background: linear-gradient(180deg, rgba(255, 59, 59, 0.06), transparent);
+    padding: 18px 22px;
+  }
+
+  .disclaim h3 {
+    color: var(--red);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin-bottom: 12px;
+  }
+
+  .disclaim p {
+    color: var(--fg);
+    font-size: 12.5px;
+    margin-bottom: 8px;
+    line-height: 1.55;
+  }
+
+  .disclaim p::before {
+    content: "[!] ";
+    color: var(--red);
+    font-weight: 700;
+  }
+
+  /* FOOTER */
+  footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--fg-mute);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  footer .left a, footer .right a {
+    color: var(--fg-dim);
+    text-decoration: none;
+    margin-right: 16px;
+  }
+  footer .left a:hover { color: var(--green); }
+
+  /* Marquee for ticker */
+  .ticker {
+    background: #000;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+    margin-bottom: 24px;
+    padding: 8px 0;
+    font-size: 11px;
+    color: var(--green);
+    white-space: nowrap;
+  }
+
+  .ticker-track {
+    display: inline-block;
+    animation: scroll 60s linear infinite;
+    padding-left: 100%;
+  }
+
+  .ticker-track span {
+    margin-right: 48px;
+    color: var(--fg-dim);
+  }
+  .ticker-track span b {
+    color: var(--green);
+    font-weight: 500;
+  }
+
+  @keyframes scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+  }
+
+  /* utils */
+  .mono { font-family: var(--mono); }
+  .hl { color: var(--green); }
+  .hl-amber { color: var(--amber); }
+  .hl-red { color: var(--red); }
+  .hl-cyan { color: var(--cyan); }
+  .dim { color: var(--fg-dim); }
+  .mute { color: var(--fg-mute); }
+  .small { font-size: 11px; }
+
+  /* Selection */
+  ::selection { background: var(--green); color: #000; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg-1); }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- TOP STATUS BAR -->
+<div class="topbar">
+  <div class="left">
+    <span class="pill"><span class="dot"></span>SECURE LINK</span>
+    <span class="dim">node://signaling.genebrew.local</span>
+    <span class="dim">tls 1.3 / x25519 / aes-gcm-256</span>
+  </div>
+  <div class="right">
+    <span class="dim">build <span class="hl">2026.05.03</span></span>
+    <span class="pill amber">SUB-PROJECT 01/06</span>
+    <span class="pill dim">draft</span>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-track">
+    <span>::: <b>STATUS</b> sub-project #1 implemented, build-verification pending</span>
+    <span>::: <b>THREAT MODEL</b> Signal-level (option B) — content + partial metadata</span>
+    <span>::: <b>CRYPTO</b> X3DH · Double Ratchet · Sealed Sender · libsignal-android</span>
+    <span>::: <b>TRANSPORT</b> WebRTC DataChannel + encrypted store-and-forward</span>
+    <span>::: <b>STORAGE</b> Room + SQLCipher + Android Keystore</span>
+    <span>::: <b>DISCOVERY</b> SHA-256 phone hash · 16-bit bucket · OPRF (F-6)</span>
+    <span>::: <b>NEXT</b> WebRTC peer-connection · FCM data-only push · sealed sender prod</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="classified-stamp">
+      INTERNAL<small>Pre-release · Not Audited</small>
+    </div>
+
+    <div class="hero-meta">
+      <span>repo: github/messenger</span>
+      <span>spec: 2026-05-03</span>
+      <span>module: kotlin-multiplatform-gradle</span>
+      <span>target: android 26+</span>
+    </div>
+
+    <h1 class="logo">
+      GENEBREW<span class="slash">//</span><span class="accent">MESSENGER</span>
+    </h1>
+    <p class="tagline">
+      Contact-based <strong>peer-to-peer encrypted messenger</strong> for Android.
+      Sub-project <strong>#1 of 6</strong> in a phased program toward a KakaoTalk-class
+      messenger with a usage-bound <strong>Gene</strong> token.
+      Built on Signal Protocol primitives — <em>no homegrown crypto</em>.
+    </p>
+
+    <div class="terminal" id="boot">
+<span class="term-prompt">guest@genebrew</span>:<span class="term-out">~/messenger</span>$ <span class="term-cmd">./gradlew :server:run --info</span>
+<span class="term-out">> Configure project :shared</span>
+<span class="term-out">> Configure project :server</span>
+<span class="term-out">> Task :server:compileKotlin</span>
+<span class="term-out">> Task :server:run</span>
+<span class="term-ok">[OK]</span> <span class="term-out">ktor engine bound 0.0.0.0:8080</span>
+<span class="term-ok">[OK]</span> <span class="term-out">h2 / postgres-mode db ready (./build/messenger-db.mv.db)</span>
+<span class="term-ok">[OK]</span> <span class="term-out">routes :: identity / prekey / discovery / relay / signaling-ws</span>
+<span class="term-warn">[WARN]</span> <span class="term-out">build verification not performed in this session — see notes §</span>
+<span class="term-prompt">guest@genebrew</span>:<span class="term-out">~/messenger</span>$ <span class="term-cmd">cat threat-model.md</span><span class="cursor"></span>
+    </div>
+
+    <div class="key-stats">
+      <div class="key-stat">
+        <label>Threat Model</label>
+        <div class="val">Signal · B</div>
+      </div>
+      <div class="key-stat">
+        <label>Identity Curve</label>
+        <div class="val">Curve25519</div>
+      </div>
+      <div class="key-stat">
+        <label>Session</label>
+        <div class="val">X3DH + DR</div>
+      </div>
+      <div class="key-stat">
+        <label>At-Rest</label>
+        <div class="val">SQLCipher</div>
+      </div>
+      <div class="key-stat">
+        <label>Discovery</label>
+        <div class="val">PSI-lite v1</div>
+      </div>
+      <div class="key-stat">
+        <label>Min SDK</label>
+        <div class="val">26 / API 34</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: THREAT MODEL -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 01</span>
+      <h2 class="section-title">Threat <span class="accent">Model</span></h2>
+      <span class="section-sub">option B · signal-level</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h3>// Protected</h3>
+        <ul>
+          <li><span class="marker">+</span><div><strong class="hl">Message contents.</strong> No intermediary — including the relay server — can read plaintext.</div></li>
+          <li><span class="marker">+</span><div><strong class="hl">Partial metadata.</strong> Sealed Sender hides "who-sent-to-whom" from the signaling server.</div></li>
+          <li><span class="marker">+</span><div><strong class="hl">Local store.</strong> Device seizure does not yield instant decryption (SQLCipher + Keystore-wrapped key).</div></li>
+          <li><span class="marker">+</span><div><strong class="hl">Forward / post-compromise secrecy.</strong> Double Ratchet rotates per-message keys.</div></li>
+        </ul>
+      </div>
+      <div class="panel warn">
+        <h3>// Not Protected</h3>
+        <ul>
+          <li><span class="marker">−</span><div><strong class="hl-red">Traffic-timing analysis.</strong> A network observer at the same ISP can infer when and how often peers communicate.</div></li>
+          <li><span class="marker">−</span><div><strong class="hl-red">Endpoint compromise.</strong> Rooted device or active malware defeats the model.</div></li>
+          <li><span class="marker">−</span><div><strong class="hl-red">Push-notification metadata.</strong> The FCM gateway sees the fact-of-push (payload is empty).</div></li>
+          <li><span class="marker">−</span><div><strong class="hl-red">Lawful warrant.</strong> The signaling server operates under its host jurisdiction's legal authority.</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: ARCHITECTURE -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 02</span>
+      <h2 class="section-title">System <span class="accent">Architecture</span></h2>
+      <span class="section-sub">hybrid · p2p first · server-relayed fallback</span>
+    </div>
+
+    <div class="arch-box">
+<pre class="ascii">
+   <span class="label">[ ANDROID :: A ]</span>                                                 <span class="label">[ ANDROID :: B ]</span>
+         │                                                                 │
+         │ <span class="note">(1) WebSocket / TLS 1.3 — auth · prekey upload · signaling</span>     │
+         ├─────────────────────┐                       ┌───────────────────┤
+                               ▼                       ▼
+                    ┌──────────────────────────────────────────┐
+                    │     <span class="label">SIGNALING / DISCOVERY  (Ktor)</span>          │
+                    │  · pre-key store         (X3DH bootstrap)│
+                    │  · psi-lite discovery    (16-bit bucket) │
+                    │  · webrtc sdp / ice relay                │
+                    │  · sealed-sender mailbox (offline queue) │
+                    │  · fcm trigger           (data-only)     │
+                    └──────────────────────────────────────────┘
+                               ▲
+                               │
+         ┌─────────────────────┘  <span class="note">(both online → switch to direct)</span>
+         │                                                                 │
+         │ <span class="arrow">(2) WebRTC DataChannel — DTLS-SRTP — Signal layer on top      </span>     │
+         ◄═════════════════════════════════════════════════════════════════►
+         │                                                                 │
+         │ <span class="note">(3) FCM data-only — wakes the device, payload is empty {"v":"1"}</span>│
+         ◄─────────────────────────────────────────────────────────────────┤
+</pre>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="panel">
+        <h3>// Direct path  (both online)</h3>
+        <p class="dim small">WebRTC <code class="hl">DataChannel</code> over DTLS, with the Signal Protocol envelope <em>inside</em> it. Transport is treated as untrusted. STUN: Google public; TURN: self-hosted coturn for symmetric NAT and carrier mobile networks.</p>
+      </div>
+      <div class="panel">
+        <h3>// Relayed path  (recipient offline)</h3>
+        <p class="dim small">Sender uploads sealed envelope to mailbox; server triggers FCM data-only push. Recipient wakes, polls, decrypts on device. ACK clears the queue. Unacknowledged envelopes auto-purge after 30 days; per-user cap is 1000 / 100 MB (whichever is lower).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: CRYPTO -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 03</span>
+      <h2 class="section-title">Crypto <span class="accent">Stack</span></h2>
+      <span class="section-sub">no rolled-our-own primitives</span>
+    </div>
+
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="id">P · 01</div>
+        <h4>X3DH</h4>
+        <p>Extended Triple Diffie-Hellman. Bootstraps a fresh session against the recipient's pre-key bundle (signed pre-key + one-time pre-key).</p>
+      </div>
+      <div class="stack-card">
+        <div class="id">P · 02</div>
+        <h4>Double Ratchet</h4>
+        <p>Per-message symmetric ratchet + DH ratchet. Provides forward secrecy and post-compromise security inside a session.</p>
+      </div>
+      <div class="stack-card">
+        <div class="id">P · 03</div>
+        <h4>Sealed Sender</h4>
+        <p>Hides the sender identity in the envelope from the signaling server. Production cert (Ed25519) ships in <span class="hl-amber">F-5</span>.</p>
+      </div>
+      <div class="stack-card">
+        <div class="id">P · 04</div>
+        <h4>Identity Key</h4>
+        <p>Long-term Curve25519 keypair. Generated on first launch, stored under Android Keystore. Account ID = <code class="hl">b64url(sha256(pub))[0:16]</code>.</p>
+      </div>
+      <div class="stack-card">
+        <div class="id">L · 01</div>
+        <h4>libsignal-android</h4>
+        <p>Audited reference implementation. We wrap it; we do not reimplement primitives.</p>
+      </div>
+      <div class="stack-card">
+        <div class="id">L · 02</div>
+        <h4>SQLCipher · Keystore</h4>
+        <p>SQLCipher passphrase wrapped by an AES-256 Keystore key. Opaque blob stored in SharedPreferences.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: DISCOVERY -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 04</span>
+      <h2 class="section-title">Privacy-Preserving <span class="accent">Discovery</span></h2>
+      <span class="section-sub">your contact list never leaves the device in cleartext</span>
+    </div>
+
+    <div class="arch-box">
+<pre class="ascii">
+   <span class="note">// v1 — bucketed lookup (PSI-lite). Full OPRF ships in F-6.</span>
+
+   1. client extracts E.164-normalized numbers from address book
+   2. for each ↦ <span class="label">SHA-256("messenger:" || E164)</span> — keep top 16 bits as <span class="label">bucket</span>
+   3. client uploads bucket-set only (NEVER full hashes, NEVER plaintext numbers)
+   4. server returns candidate routing-tokens whose bucket overlaps
+   5. client runs OPRF check per candidate — exact match, server learns nothing
+
+   <span class="note">// known v1 limitation</span>
+   ─ bucket-only matching is not full mathematical PSI;
+     plaintext phone numbers still never reach the server.
+</pre>
+    </div>
+  </section>
+
+  <!-- SECTION: MODULES -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 05</span>
+      <h2 class="section-title">Module <span class="accent">Manifest</span></h2>
+      <span class="section-sub">gradle multi-module · kotlin 2.1 · jdk 17</span>
+    </div>
+
+    <table class="modtable">
+      <thead>
+        <tr>
+          <th style="width:42%">Module</th>
+          <th style="width:14%">Status</th>
+          <th>Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="name">:shared</td><td class="status-ok">implemented</td><td>Protocol DTOs — RegisterAccount, PreKeyBundle, Discovery, Relay, Signaling (kotlinx-serialization)</td></tr>
+        <tr><td class="name">:server</td><td class="status-ok">implemented</td><td>Ktor app · H2/Postgres-mode DB · Exposed schema · identity / prekey / discovery / relay routes · WebSocket signaling hub · JUnit 5 tests</td></tr>
+        <tr><td class="name">:android:core:storage</td><td class="status-ok">implemented</td><td>Room entities + DAOs · SQLCipher · Keystore-wrapped DB key</td></tr>
+        <tr><td class="name">:android:core:identity</td><td class="status-ok">implemented</td><td>Account-ID derivation · key lifecycle</td></tr>
+        <tr><td class="name">:android:core:crypto</td><td class="status-ok">implemented</td><td>libsignal wrappers · Room-backed SignalProtocolStore · X3DH / Double-Ratchet roundtrip test</td></tr>
+        <tr><td class="name">:android:core:discovery</td><td class="status-ok">implemented</td><td>E.164 normalizer · bucket hasher · lookup HTTP client</td></tr>
+        <tr><td class="name">:android:core:network</td><td class="status-ok">implemented</td><td>Ktor HTTP / WebSocket clients (identity, prekey, relay, signaling)</td></tr>
+        <tr><td class="name">:android:core:messaging</td><td class="status-ok">implemented</td><td>MessageSender · MessageReceiver · Outbox · ConversationRepository</td></tr>
+        <tr><td class="name">:android:app</td><td class="status-ok">implemented</td><td>Compose Material3 nav shell · KakaoTalk-tinted theme</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:28px;color:var(--amber);font-size:12px;letter-spacing:0.2em;text-transform:uppercase;">// Deferred — still inside sub-project #1</h3>
+    <div class="deferred" style="margin-top:10px">
+      <div class="def-row"><span class="tag">F-1</span><div class="body">Wire ChatList / ChatRoom to ConversationRepository + MessageSender via Hilt ViewModels.<small>UI ↔ messaging facade</small></div></div>
+      <div class="def-row"><span class="tag">F-2</span><div class="body">Read device contacts via ContentResolver, normalize, hash, sync to discovery.<small>contact-import path</small></div></div>
+      <div class="def-row"><span class="tag">F-3</span><div class="body">WebRTC PeerConnection setup using SignalingClient — switch sender to direct DataChannel when both peers online.<small>p2p hot-path</small></div></div>
+      <div class="def-row"><span class="tag">F-4</span><div class="body">FCM data-only push + MessageReceiver.pollAndProcess.<small>wake-up loop</small></div></div>
+      <div class="def-row"><span class="tag">F-5</span><div class="body">True sealed sender — server-issued SenderCertificate (Ed25519) + SealedSessionCipher end-to-end.<small>metadata hardening</small></div></div>
+      <div class="def-row"><span class="tag">F-6</span><div class="body">Production PSI (OPRF) replacing v1 bucket-only matching.<small>discovery hardening</small></div></div>
+    </div>
+  </section>
+
+  <!-- SECTION: ROADMAP -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 06</span>
+      <h2 class="section-title">Program <span class="accent">Roadmap</span></h2>
+      <span class="section-sub">option C · commercial-track · 6 sub-projects</span>
+    </div>
+
+    <div class="roadmap">
+      <div class="road-card current">
+        <div class="num">SP · 01</div>
+        <span class="badge">CURRENT</span>
+        <h5>P2P Encrypted Core</h5>
+        <p>1:1 text · phone-discovery · E2EE · WebRTC + relay · usable shell</p>
+      </div>
+      <div class="road-card">
+        <div class="num">SP · 02</div>
+        <h5>UI / UX Polish</h5>
+        <p>KakaoTalk-grade design pass over the Compose shell</p>
+      </div>
+      <div class="road-card">
+        <div class="num">SP · 03</div>
+        <h5>Usage Measurement</h5>
+        <p>Verifiable activity metrics — prerequisite for the token</p>
+      </div>
+      <div class="road-card">
+        <div class="num">SP · 04</div>
+        <h5>Gene Token</h5>
+        <p>Ledger · mining algorithm · time-decay · pre-mine</p>
+      </div>
+      <div class="road-card">
+        <div class="num">SP · 05</div>
+        <h5>Build Variants</h5>
+        <p>Master vs. regular flavors · staged rollout</p>
+      </div>
+      <div class="road-card">
+        <div class="num">SP · 06</div>
+        <h5>Audit + Beta</h5>
+        <p>External security audit · public beta · GA release</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION: HONEST NOTES -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 07</span>
+      <h2 class="section-title">Honest <span class="accent">Notes</span></h2>
+      <span class="section-sub">read before deploying anywhere near real users</span>
+    </div>
+
+    <div class="disclaim">
+      <p><strong>Build verification was not performed in this session.</strong> The terminal that authored the code has JDK 17 but no Android SDK and no Gradle CLI. All sources are written against documented APIs but compile / test passes must be run from Android Studio.</p>
+      <p><strong>Do not deploy this for real users yet.</strong> Sealed Sender is currently a placeholder, the discovery PSI is bucket-only (not full PSI), and there has been no external security audit.</p>
+      <p><strong>Korean legal review — 가상자산이용자보호법 / 특금법 — is required before sub-project #4</strong> (token mining + ledger). This affects corporate structure and runs as a parallel non-code workstream.</p>
+    </div>
+  </section>
+
+  <!-- BUILD INSTRUCTIONS -->
+  <section>
+    <div class="section-head">
+      <span class="section-num">§ 08</span>
+      <h2 class="section-title">Build <span class="accent">// Run</span></h2>
+      <span class="section-sub">jdk 17 · android studio ladybug+ · gradle 8.9</span>
+    </div>
+
+    <div class="terminal" style="margin:0">
+<span class="term-out"># --- server ----------------------------------------</span>
+<span class="term-prompt">~/messenger</span>$ <span class="term-cmd">./gradlew :server:run</span>
+<span class="term-out">  listens on :8080  ·  H2 file db @ server/build/messenger-db.mv.db</span>
+<span class="term-out">  override via env: PORT · DATABASE_URL · DATABASE_USER · DATABASE_PASSWORD</span>
+
+<span class="term-out"># --- android app -----------------------------------</span>
+<span class="term-prompt">~/messenger</span>$ <span class="term-cmd">./gradlew :android:app:assembleDebug</span>
+<span class="term-out">  apk → android/app/build/outputs/apk/debug/app-debug.apk</span>
+
+<span class="term-out"># --- jvm unit tests --------------------------------</span>
+<span class="term-prompt">~/messenger</span>$ <span class="term-cmd">./gradlew test</span>
+<span class="term-out">  :shared · :server · :android:core:identity</span>
+<span class="term-out">  :android:core:discovery · :android:core:crypto</span>
+
+<span class="term-warn">[note]</span> <span class="term-out">repo does not ship gradle-wrapper.jar — open in Android Studio once</span>
+<span class="term-warn">     </span> <span class="term-out">to materialize the wrapper, or run: gradle wrapper --gradle-version 8.9</span>
+    </div>
+  </section>
+
+  <footer>
+    <div class="left">
+      <a href="#">/spec</a>
+      <a href="#">/plan</a>
+      <a href="#">/threat-model</a>
+      <a href="#">/changelog</a>
+    </div>
+    <div class="right dim">
+      genebrew · messenger · sub-project 01 · 2026-05-03
+      <span class="hl">●</span> session id: <span class="mono">$GB-MSG-001</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // Tiny boot animation: progressively reveal terminal lines on first paint
+  (function () {
+    const term = document.getElementById('boot');
+    if (!term) return;
+    const html = term.innerHTML;
+    term.style.opacity = '0';
+    requestAnimationFrame(() => {
+      term.style.transition = 'opacity 0.6s ease';
+      term.style.opacity = '1';
+    });
+  })();
+
+  // Glitch the logo once on load
+  (function () {
+    const logo = document.querySelector('.logo');
+    if (!logo) return;
+    let frames = 0;
+    const original = logo.innerHTML;
+    const glyphs = '!<>-_\\/[]{}—=+*^?#';
+    const interval = setInterval(() => {
+      frames++;
+      const out = original.replace(/[A-Z]/g, (c) => Math.random() < 0.06 ? glyphs[Math.floor(Math.random() * glyphs.length)] : c);
+      logo.innerHTML = out;
+      if (frames > 14) {
+        clearInterval(interval);
+        logo.innerHTML = original;
+      }
+    }, 60);
+  })();
+</script>
+</body>
+</html>
