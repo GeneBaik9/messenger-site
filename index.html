@@ -1099,11 +1099,24 @@
       .ib-vote:hover { background: rgba(255,176,0,0.1); }
       .ib-empty { color: var(--fg-dim); padding: 24px; text-align: center; border: 1px dashed var(--line); }
       .ib-status { font-size: 11px; color: var(--fg-dim); margin-top: 8px; }
+      .ib-file-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+      .ib-file-row label { color: var(--fg-dim); font-size: 12px; cursor: pointer; padding: 6px 12px; border: 1px dashed var(--line); border-radius: 3px; }
+      .ib-file-row label:hover { border-color: var(--green); color: var(--green); }
+      .ib-file-row input[type="file"] { display: none; }
+      .ib-file-name { color: var(--cyan); font-size: 11px; }
+      .ib-file-preview { max-width: 120px; max-height: 80px; border: 1px solid var(--line); border-radius: 3px; }
+      .ib-item-img { max-width: 100%; max-height: 320px; border: 1px solid var(--line); border-radius: 4px; margin: 8px 0; cursor: pointer; }
     </style>
 
     <form class="ib-form" id="ibForm">
       <input type="text" id="ibTitle" required maxlength="200">
       <textarea id="ibDesc" required maxlength="2000"></textarea>
+      <div class="ib-file-row">
+        <label for="ibImage" id="ibImageLabel">📎 Attach screenshot</label>
+        <input type="file" id="ibImage" accept="image/*">
+        <span class="ib-file-name" id="ibFileName"></span>
+        <img class="ib-file-preview" id="ibPreview" style="display:none">
+      </div>
       <button type="submit" class="ib-btn" id="ibSubmitBtn">+ Submit</button>
       <div class="ib-status" id="ibStatus"></div>
     </form>
@@ -1146,6 +1159,9 @@
       by: '작성자',
       status: '상태',
       locale: 'ko-KR',
+      attach: '📎 스크린샷 첨부',
+      tooBig: '파일이 너무 큽니다 (최대 5MB)',
+      notImage: '이미지 파일만 첨부 가능합니다',
     },
     en: {
       sub: 'bug reports + feature requests — anonymous voting',
@@ -1162,6 +1178,9 @@
       by: 'by',
       status: 'status',
       locale: 'en-US',
+      attach: '📎 Attach screenshot',
+      tooBig: 'File too large (max 5MB)',
+      notImage: 'Only image files allowed',
     },
   }[IB_LANG === 'ko' ? 'ko' : 'en'];
   // 정적 라벨 적용
@@ -1170,6 +1189,29 @@
   document.getElementById('ibDesc').placeholder = IB_T.descPh;
   document.getElementById('ibSubmitBtn').textContent = IB_T.submit;
   document.getElementById('ibLoading').textContent = IB_T.loading;
+  document.getElementById('ibImageLabel').textContent = IB_T.attach;
+
+  // 이미지 파일 미리보기 + 검증 (5MB 제한, image/* 만)
+  document.getElementById('ibImage').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    const nameSpan = document.getElementById('ibFileName');
+    const preview = document.getElementById('ibPreview');
+    if (!file) { nameSpan.textContent = ''; preview.style.display = 'none'; return; }
+    if (!file.type.startsWith('image/')) {
+      alert(IB_T.notImage);
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert(IB_T.tooBig);
+      e.target.value = '';
+      return;
+    }
+    nameSpan.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+    const reader = new FileReader();
+    reader.onload = (ev) => { preview.src = ev.target.result; preview.style.display = 'inline-block'; };
+    reader.readAsDataURL(file);
+  });
 
   // 익명 사용자에게 브라우저 localStorage 기반 stable accountId 부여 (vote 중복 방지용).
   function ibGetAnonId() {
@@ -1198,6 +1240,7 @@
         <div class="ib-item">
           <div class="ib-item-title">${ibEsc(r.title)}</div>
           <div class="ib-item-desc">${ibEsc(r.description)}</div>
+          ${r.imagePath ? `<a href="${ibEsc(r.imagePath)}" target="_blank"><img class="ib-item-img" src="${ibEsc(r.imagePath)}" loading="lazy" alt="screenshot"></a>` : ''}
           <div class="ib-item-meta">
             <span>${ibEsc(IB_T.by)} ${ibEsc((r.authorAccountId || '').substring(0, 8))}…</span>
             <span>${new Date(r.createdAtMs || Date.now()).toLocaleString(IB_T.locale)}</span>
@@ -1227,11 +1270,16 @@
     fd.append('title', document.getElementById('ibTitle').value);
     fd.append('description', document.getElementById('ibDesc').value);
     fd.append('authorAccountId', ibGetAnonId());
+    const imgFile = document.getElementById('ibImage').files[0];
+    if (imgFile) fd.append('image', imgFile, imgFile.name);
     try {
       const resp = await fetch('/api/reports', { method: 'POST', body: fd });
       if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()));
       document.getElementById('ibTitle').value = '';
       document.getElementById('ibDesc').value = '';
+      document.getElementById('ibImage').value = '';
+      document.getElementById('ibFileName').textContent = '';
+      document.getElementById('ibPreview').style.display = 'none';
       status.textContent = IB_T.submitOK;
       setTimeout(() => status.textContent = '', 3000);
       ibLoad();
