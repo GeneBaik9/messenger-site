@@ -1081,7 +1081,7 @@
     <div class="section-head">
       <span class="section-num">§ 09</span>
       <h2 class="section-title">Issues <span class="accent">// Vote</span></h2>
-      <span class="section-sub">버그/제안 게시판 — 익명 vote 가능</span>
+      <span class="section-sub" data-i18n="sub">bug reports + feature requests — anonymous voting</span>
     </div>
 
     <style>
@@ -1102,14 +1102,14 @@
     </style>
 
     <form class="ib-form" id="ibForm">
-      <input type="text" id="ibTitle" placeholder="이슈 제목 (예: '오픈방 알림 소리 추가')" required maxlength="200">
-      <textarea id="ibDesc" placeholder="상세 설명, 재현 단계 등" required maxlength="2000"></textarea>
-      <button type="submit" class="ib-btn">+ 등록</button>
+      <input type="text" id="ibTitle" required maxlength="200">
+      <textarea id="ibDesc" required maxlength="2000"></textarea>
+      <button type="submit" class="ib-btn" id="ibSubmitBtn">+ Submit</button>
       <div class="ib-status" id="ibStatus"></div>
     </form>
 
     <div class="ib-list" id="ibList">
-      <div class="ib-empty">로딩 중...</div>
+      <div class="ib-empty" id="ibLoading">Loading...</div>
     </div>
   </section>
 
@@ -1128,7 +1128,49 @@
 </div>
 
 <script>
-  // === 이슈 게시판 ===
+  // === 이슈 게시판 (i18n: 한국어 / 영어 자동 분기) ===
+  const IB_LANG = (navigator.language || 'en').toLowerCase().startsWith('ko') ? 'ko' : 'en';
+  const IB_T = {
+    ko: {
+      sub: '버그/제안 게시판 — 익명 vote 가능',
+      titlePh: "이슈 제목 (예: '오픈방 알림 소리 추가')",
+      descPh: '상세 설명, 재현 단계 등',
+      submit: '+ 등록',
+      submitting: '등록 중...',
+      submitOK: '✓ 등록 완료',
+      submitFail: '등록 실패: ',
+      voteFail: 'Vote 실패: ',
+      loading: '로딩 중...',
+      empty: '아직 등록된 이슈가 없습니다. 첫 번째 이슈를 올려주세요.',
+      loadFail: '로드 실패: ',
+      by: '작성자',
+      status: '상태',
+      locale: 'ko-KR',
+    },
+    en: {
+      sub: 'bug reports + feature requests — anonymous voting',
+      titlePh: "Issue title (e.g., 'Add notification sound for open rooms')",
+      descPh: 'Detailed description, reproduction steps, etc.',
+      submit: '+ Submit',
+      submitting: 'Submitting...',
+      submitOK: '✓ Submitted',
+      submitFail: 'Submit failed: ',
+      voteFail: 'Vote failed: ',
+      loading: 'Loading...',
+      empty: 'No issues yet. Be the first to report one.',
+      loadFail: 'Failed to load: ',
+      by: 'by',
+      status: 'status',
+      locale: 'en-US',
+    },
+  }[IB_LANG === 'ko' ? 'ko' : 'en'];
+  // 정적 라벨 적용
+  document.querySelector('[data-i18n="sub"]').textContent = IB_T.sub;
+  document.getElementById('ibTitle').placeholder = IB_T.titlePh;
+  document.getElementById('ibDesc').placeholder = IB_T.descPh;
+  document.getElementById('ibSubmitBtn').textContent = IB_T.submit;
+  document.getElementById('ibLoading').textContent = IB_T.loading;
+
   // 익명 사용자에게 브라우저 localStorage 기반 stable accountId 부여 (vote 중복 방지용).
   function ibGetAnonId() {
     let id = localStorage.getItem('genebrew_web_account_id');
@@ -1148,25 +1190,24 @@
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const reports = await resp.json();
       if (!reports.length) {
-        list.innerHTML = '<div class="ib-empty">아직 등록된 이슈가 없습니다. 첫 번째 이슈를 올려주세요.</div>';
+        list.innerHTML = '<div class="ib-empty">' + ibEsc(IB_T.empty) + '</div>';
         return;
       }
-      // vote count 내림차순
       reports.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
       list.innerHTML = reports.map(r => `
         <div class="ib-item">
           <div class="ib-item-title">${ibEsc(r.title)}</div>
           <div class="ib-item-desc">${ibEsc(r.description)}</div>
           <div class="ib-item-meta">
-            <span>by ${ibEsc((r.authorAccountId || '').substring(0, 8))}…</span>
-            <span>${new Date(r.createdAtMs || Date.now()).toLocaleString('ko-KR')}</span>
-            <span>· status: <span style="color:var(--green)">${ibEsc(r.status || 'OPEN')}</span></span>
+            <span>${ibEsc(IB_T.by)} ${ibEsc((r.authorAccountId || '').substring(0, 8))}…</span>
+            <span>${new Date(r.createdAtMs || Date.now()).toLocaleString(IB_T.locale)}</span>
+            <span>· ${ibEsc(IB_T.status)}: <span style="color:var(--green)">${ibEsc(r.status || 'OPEN')}</span></span>
             <button class="ib-vote" onclick="ibVote('${ibEsc(r.id)}')">▲ ${r.voteCount || 0}</button>
           </div>
         </div>
       `).join('');
     } catch (e) {
-      list.innerHTML = '<div class="ib-empty">로드 실패: ' + ibEsc(e.message) + '</div>';
+      list.innerHTML = '<div class="ib-empty">' + ibEsc(IB_T.loadFail + e.message) + '</div>';
     }
   }
   async function ibVote(id) {
@@ -1175,13 +1216,13 @@
       await fetch(`/api/reports/${encodeURIComponent(id)}/vote?accountId=${encodeURIComponent(accountId)}`, { method: 'POST' });
       ibLoad();
     } catch (e) {
-      alert('Vote 실패: ' + e.message);
+      alert(IB_T.voteFail + e.message);
     }
   }
   document.getElementById('ibForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const status = document.getElementById('ibStatus');
-    status.textContent = '등록 중...';
+    status.textContent = IB_T.submitting;
     const fd = new FormData();
     fd.append('title', document.getElementById('ibTitle').value);
     fd.append('description', document.getElementById('ibDesc').value);
@@ -1191,11 +1232,11 @@
       if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()));
       document.getElementById('ibTitle').value = '';
       document.getElementById('ibDesc').value = '';
-      status.textContent = '✓ 등록 완료';
+      status.textContent = IB_T.submitOK;
       setTimeout(() => status.textContent = '', 3000);
       ibLoad();
     } catch (e) {
-      status.textContent = '등록 실패: ' + e.message;
+      status.textContent = IB_T.submitFail + e.message;
     }
   });
   ibLoad();
