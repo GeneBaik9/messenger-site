@@ -1076,12 +1076,49 @@
     </div>
   </section>
 
+  <!-- ISSUE BOARD -->
+  <section id="issues">
+    <div class="section-head">
+      <span class="section-num">§ 09</span>
+      <h2 class="section-title">Issues <span class="accent">// Vote</span></h2>
+      <span class="section-sub">버그/제안 게시판 — 익명 vote 가능</span>
+    </div>
+
+    <style>
+      .ib-form { background: var(--bg-1); border: 1px solid var(--line); padding: 16px; margin-bottom: 16px; border-radius: 4px; }
+      .ib-form input, .ib-form textarea { width: 100%; background: var(--bg-0); color: var(--fg); border: 1px solid var(--line); padding: 8px; font-family: var(--mono); font-size: 13px; margin-bottom: 8px; box-sizing: border-box; }
+      .ib-form textarea { min-height: 80px; resize: vertical; }
+      .ib-btn { background: transparent; color: var(--green); border: 1px solid var(--green); padding: 6px 14px; cursor: pointer; font-family: var(--mono); font-size: 12px; transition: all 0.15s; }
+      .ib-btn:hover { background: rgba(0,255,159,0.1); }
+      .ib-list { display: flex; flex-direction: column; gap: 12px; }
+      .ib-item { background: var(--bg-1); border: 1px solid var(--line); padding: 12px 16px; border-radius: 4px; }
+      .ib-item-title { color: var(--green); font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+      .ib-item-desc { color: var(--fg); font-size: 13px; white-space: pre-wrap; margin-bottom: 8px; }
+      .ib-item-meta { color: var(--fg-dim); font-size: 11px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .ib-vote { background: transparent; color: var(--amber); border: 1px solid rgba(255,176,0,0.4); padding: 3px 10px; cursor: pointer; font-family: var(--mono); font-size: 12px; }
+      .ib-vote:hover { background: rgba(255,176,0,0.1); }
+      .ib-empty { color: var(--fg-dim); padding: 24px; text-align: center; border: 1px dashed var(--line); }
+      .ib-status { font-size: 11px; color: var(--fg-dim); margin-top: 8px; }
+    </style>
+
+    <form class="ib-form" id="ibForm">
+      <input type="text" id="ibTitle" placeholder="이슈 제목 (예: '오픈방 알림 소리 추가')" required maxlength="200">
+      <textarea id="ibDesc" placeholder="상세 설명, 재현 단계 등" required maxlength="2000"></textarea>
+      <button type="submit" class="ib-btn">+ 등록</button>
+      <div class="ib-status" id="ibStatus"></div>
+    </form>
+
+    <div class="ib-list" id="ibList">
+      <div class="ib-empty">로딩 중...</div>
+    </div>
+  </section>
+
   <footer>
     <div class="left">
       <a href="#">/spec</a>
       <a href="#">/plan</a>
       <a href="#">/threat-model</a>
-      <a href="#">/changelog</a>
+      <a href="#issues">/issues</a>
     </div>
     <div class="right dim">
       genebrew · messenger · sub-project 01 · 2026-05-03
@@ -1089,6 +1126,82 @@
     </div>
   </footer>
 </div>
+
+<script>
+  // === 이슈 게시판 ===
+  // 익명 사용자에게 브라우저 localStorage 기반 stable accountId 부여 (vote 중복 방지용).
+  function ibGetAnonId() {
+    let id = localStorage.getItem('genebrew_web_account_id');
+    if (!id) {
+      id = 'web_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+      localStorage.setItem('genebrew_web_account_id', id);
+    }
+    return id;
+  }
+  function ibEsc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  async function ibLoad() {
+    const list = document.getElementById('ibList');
+    try {
+      const resp = await fetch('/api/reports');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const reports = await resp.json();
+      if (!reports.length) {
+        list.innerHTML = '<div class="ib-empty">아직 등록된 이슈가 없습니다. 첫 번째 이슈를 올려주세요.</div>';
+        return;
+      }
+      // vote count 내림차순
+      reports.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+      list.innerHTML = reports.map(r => `
+        <div class="ib-item">
+          <div class="ib-item-title">${ibEsc(r.title)}</div>
+          <div class="ib-item-desc">${ibEsc(r.description)}</div>
+          <div class="ib-item-meta">
+            <span>by ${ibEsc((r.authorAccountId || '').substring(0, 8))}…</span>
+            <span>${new Date(r.createdAtMs || Date.now()).toLocaleString('ko-KR')}</span>
+            <span>· status: <span style="color:var(--green)">${ibEsc(r.status || 'OPEN')}</span></span>
+            <button class="ib-vote" onclick="ibVote('${ibEsc(r.id)}')">▲ ${r.voteCount || 0}</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="ib-empty">로드 실패: ' + ibEsc(e.message) + '</div>';
+    }
+  }
+  async function ibVote(id) {
+    const accountId = ibGetAnonId();
+    try {
+      await fetch(`/api/reports/${encodeURIComponent(id)}/vote?accountId=${encodeURIComponent(accountId)}`, { method: 'POST' });
+      ibLoad();
+    } catch (e) {
+      alert('Vote 실패: ' + e.message);
+    }
+  }
+  document.getElementById('ibForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('ibStatus');
+    status.textContent = '등록 중...';
+    const fd = new FormData();
+    fd.append('title', document.getElementById('ibTitle').value);
+    fd.append('description', document.getElementById('ibDesc').value);
+    fd.append('authorAccountId', ibGetAnonId());
+    try {
+      const resp = await fetch('/api/reports', { method: 'POST', body: fd });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()));
+      document.getElementById('ibTitle').value = '';
+      document.getElementById('ibDesc').value = '';
+      status.textContent = '✓ 등록 완료';
+      setTimeout(() => status.textContent = '', 3000);
+      ibLoad();
+    } catch (e) {
+      status.textContent = '등록 실패: ' + e.message;
+    }
+  });
+  ibLoad();
+  // 30초마다 자동 새로고침 (다른 사람 vote 반영)
+  setInterval(ibLoad, 30000);
+</script>
 
 <script>
   // Tiny boot animation: progressively reveal terminal lines on first paint
