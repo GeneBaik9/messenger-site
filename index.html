@@ -1076,6 +1076,42 @@
     </div>
   </section>
 
+  <!-- DOWNLOAD -->
+  <section id="download">
+    <div class="section-head">
+      <span class="section-num">§ 09a</span>
+      <h2 class="section-title">Download <span class="accent">// Install</span></h2>
+      <span class="section-sub">Android APK — direct install (not on Play Store yet)</span>
+    </div>
+
+    <style>
+      .dl-card { background: var(--bg-1); border: 1px solid var(--line); padding: 20px; border-radius: 6px; margin-bottom: 16px; }
+      .dl-btn { display: inline-block; background: var(--green); color: var(--bg-0); padding: 12px 24px; text-decoration: none; font-weight: 700; font-family: var(--mono); border-radius: 4px; margin-top: 8px; transition: all 0.15s; }
+      .dl-btn:hover { background: var(--green-deep); transform: translateY(-1px); }
+      .dl-url { color: var(--cyan); word-break: break-all; font-size: 13px; margin-top: 8px; }
+      .dl-warn { color: var(--amber); font-size: 12px; margin-top: 12px; padding: 10px 14px; border-left: 3px solid var(--amber); background: rgba(255,176,0,0.05); }
+      .dl-steps { color: var(--fg); font-size: 13px; margin-top: 12px; line-height: 1.7; }
+      .dl-steps li { margin-bottom: 4px; }
+    </style>
+
+    <div class="dl-card">
+      <h3 style="margin-top:0;color:var(--green)" data-i18n="dl-title">Download Genebrew Messenger</h3>
+      <p data-i18n="dl-desc" style="color:var(--fg-dim);font-size:13px;margin:6px 0 0">Always points to the latest stable release. Updates after install happen via in-app OTA.</p>
+      <a class="dl-btn" id="dlBtn" href="http://104.238.151.252/d/official" data-i18n="dl-btn">⬇ Download APK (latest)</a>
+      <div class="dl-url">http://104.238.151.252/d/official</div>
+      <div class="dl-warn" data-i18n="dl-warn">⚠ If you already installed an old version from a different source, uninstall it first (signature mismatch will block update).</div>
+      <div class="dl-steps">
+        <strong data-i18n="dl-steps-title">Install steps:</strong>
+        <ol style="padding-left:20px">
+          <li data-i18n="dl-step1">Tap the button above to download the APK</li>
+          <li data-i18n="dl-step2">Open the downloaded file (allow "install from unknown sources" if prompted)</li>
+          <li data-i18n="dl-step3">Tap "Install"</li>
+          <li data-i18n="dl-step4">Open the app and follow setup</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
   <!-- ISSUE BOARD -->
   <section id="issues">
     <div class="section-head">
@@ -1131,6 +1167,7 @@
       <a href="#">/spec</a>
       <a href="#">/plan</a>
       <a href="#">/threat-model</a>
+      <a href="#download">/download</a>
       <a href="#issues">/issues</a>
     </div>
     <div class="right dim">
@@ -1162,6 +1199,15 @@
       attach: '📎 스크린샷 첨부',
       tooBig: '파일이 너무 큽니다 (최대 5MB)',
       notImage: '이미지 파일만 첨부 가능합니다',
+      dlTitle: 'Genebrew Messenger 다운로드',
+      dlDesc: '항상 최신 안정 버전으로 연결됩니다. 설치 후 업데이트는 앱 내 OTA로 진행됩니다.',
+      dlBtn: '⬇ APK 다운로드 (최신)',
+      dlWarn: '⚠ 다른 곳에서 받은 옛 버전이 있다면 먼저 삭제하세요 (서명 불일치로 설치 차단됨).',
+      dlStepsTitle: '설치 단계:',
+      dlStep1: '위 버튼을 눌러 APK 다운로드',
+      dlStep2: '받은 파일 열기 (출처 알 수 없음 허용 묻는 화면 나오면 OK)',
+      dlStep3: '"설치" 누르기',
+      dlStep4: '앱 열고 setup 진행',
     },
     en: {
       sub: 'bug reports + feature requests — anonymous voting',
@@ -1181,6 +1227,15 @@
       attach: '📎 Attach screenshot',
       tooBig: 'File too large (max 5MB)',
       notImage: 'Only image files allowed',
+      dlTitle: 'Download Genebrew Messenger',
+      dlDesc: 'Always points to the latest stable release. Updates after install happen via in-app OTA.',
+      dlBtn: '⬇ Download APK (latest)',
+      dlWarn: '⚠ If you already installed an old version from a different source, uninstall it first (signature mismatch will block update).',
+      dlStepsTitle: 'Install steps:',
+      dlStep1: 'Tap the button above to download the APK',
+      dlStep2: 'Open the downloaded file (allow "install from unknown sources" if prompted)',
+      dlStep3: 'Tap "Install"',
+      dlStep4: 'Open the app and follow setup',
     },
   }[IB_LANG === 'ko' ? 'ko' : 'en'];
   // 정적 라벨 적용
@@ -1190,6 +1245,18 @@
   document.getElementById('ibSubmitBtn').textContent = IB_T.submit;
   document.getElementById('ibLoading').textContent = IB_T.loading;
   document.getElementById('ibImageLabel').textContent = IB_T.attach;
+  // Download 섹션 i18n
+  (function() {
+    const map = {
+      'dl-title': IB_T.dlTitle, 'dl-desc': IB_T.dlDesc, 'dl-btn': IB_T.dlBtn,
+      'dl-warn': IB_T.dlWarn, 'dl-steps-title': IB_T.dlStepsTitle,
+      'dl-step1': IB_T.dlStep1, 'dl-step2': IB_T.dlStep2,
+      'dl-step3': IB_T.dlStep3, 'dl-step4': IB_T.dlStep4,
+    };
+    Object.entries(map).forEach(([k, v]) => {
+      document.querySelectorAll('[data-i18n="' + k + '"]').forEach(el => el.textContent = v);
+    });
+  })();
 
   // 이미지 파일 미리보기 + 검증 (5MB 제한, image/* 만)
   document.getElementById('ibImage').addEventListener('change', (e) => {
